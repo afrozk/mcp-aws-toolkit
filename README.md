@@ -9,11 +9,15 @@ MCP server that exposes AWS operations as AI-callable tools, compatible with Cla
 "Force deploy the payments-service in my prod ECS cluster"
 "Invoke the data-processor Lambda with this payload and show me the response"
 "Show who can invoke the payments Lambda function"
+"What have I spent on AWS so far this month, broken down by service?"
+"Forecast my AWS costs for the next 30 days"
+"Which services are costing me the most over the last 30 days?"
+"Show me daily spending trends for the last 2 weeks"
 ```
 
 ---
 
-## Tools (36 total)
+## Tools (43 total)
 
 ### ECS
 
@@ -76,6 +80,21 @@ MCP server that exposes AWS operations as AI-callable tools, compatible with Cla
 | `lambda_delete_function_concurrency` | Remove reserved concurrency limit |
 | `lambda_get_policy` | Get resource-based policy (who can invoke) |
 
+### Cost Explorer
+
+| Tool | Description |
+|------|-------------|
+| `cost_current_month` | Month-to-date spend by service, sorted by cost |
+| `cost_last_month` | Previous calendar month spend by service |
+| `cost_date_range` | Custom date range with DAILY or MONTHLY granularity |
+| `cost_forecast` | Forecasted spend for the next N days with daily breakdown |
+| `cost_top_services` | Top N most expensive services over the last N days |
+| `cost_daily_trend` | Day-by-day spend for the last N days with per-service detail |
+| `cost_by_tag` | Spend grouped by a cost allocation tag (e.g. `Environment`, `Team`) |
+
+> **Note:** Cost Explorer charges $0.01 per API request after the first 10,000 requests/month.
+> The `cost_by_tag` tool requires cost allocation tags to be activated in your AWS Billing console.
+
 ---
 
 ## Setup
@@ -123,7 +142,8 @@ pip install -e ".[dev]"
 pytest
 ```
 
-All tests use [moto](https://github.com/getmoto/moto) to mock AWS — no real credentials needed.
+ECS, CloudWatch, S3, IAM, and Lambda tests use [moto](https://github.com/getmoto/moto) to mock AWS — no real credentials needed.
+Cost Explorer tests use `unittest.mock` (moto does not implement `get_cost_and_usage` or `get_cost_forecast`).
 
 ## Project structure
 
@@ -135,21 +155,23 @@ src/mcp_aws_toolkit/
     ├── cloudwatch.py
     ├── s3.py
     ├── iam.py
-    └── lambda_tools.py
+    ├── lambda_tools.py
+    └── cost.py            # Cost Explorer: current/last month, forecast, trends, tag breakdown
 tests/
-├── conftest.py            # Shared fixtures: aws_credentials, make_lambda_zip, iam_role_arn
+├── conftest.py            # Shared fixtures: aws_credentials, moto_aws, make_lambda_zip
 ├── test_ecs.py
 ├── test_cloudwatch.py
 ├── test_s3.py
 ├── test_iam.py
-└── test_lambda.py
+├── test_lambda.py
+└── test_cost.py           # Mock-based; tests parsing and formatting of CE responses
 ```
 
 ## Adding a new service
 
 1. Create `src/mcp_aws_toolkit/tools/myservice.py` — define functions at module level, add a `register(mcp)` that calls `mcp.tool()(fn)` for each
 2. Import and call `myservice.register(mcp)` in `server.py`
-3. Add `tests/test_myservice.py` using `@mock_aws`
+3. Add `tests/test_myservice.py` using the `moto_aws` fixture (or `unittest.mock` if moto doesn't support the service)
 
 ## Required IAM permissions
 
@@ -171,9 +193,18 @@ tests/
       "lambda:ListVersionsByFunction", "lambda:ListAliases",
       "lambda:ListEventSourceMappings", "lambda:GetFunctionUrlConfig",
       "lambda:PutFunctionConcurrency", "lambda:DeleteFunctionConcurrency",
-      "lambda:GetPolicy"
+      "lambda:GetPolicy",
+      "ce:GetCostAndUsage", "ce:GetCostForecast"
     ],
     "Resource": "*"
   }]
 }
 ```
+
+## Contributing
+
+PRs welcome! Please open an issue first for new service additions.
+
+## License
+
+MIT — see [LICENSE](LICENSE)
