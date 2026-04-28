@@ -122,7 +122,7 @@ mcp dev src/mcp_aws_toolkit/server.py
       "command": "/path/to/.venv/bin/mcp-aws-toolkit",
       "env": {
         "AWS_PROFILE": "your-profile",
-        "AWS_DEFAULT_REGION": "us-east-1"
+        "AWS_DEFAULT_REGION": "ap-southeast-1"
       }
     }
   }
@@ -207,4 +207,4 @@ PRs welcome! Please open an issue first for new service additions.
 
 ## License
 
-MIT — see [LICENSE](LICENSE)
+MIT
